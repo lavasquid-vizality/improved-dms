@@ -46,6 +46,19 @@ export default class ImprovedDMs extends Plugin {
         return res;
       });
 
+      patch(getModule(m => m.default?.displayName === 'GroupDMContextMenu'), 'default', (args, res) => {
+        if (!res) return res;
+        const section = AllPinnedDMs[args[0].channel.id];
+
+        res.props.children.unshift(<MenuGroup>{
+          !section || section === 'Groups' || section === 'Friends'
+            ? Pin(this.settings.get, this.settings.set, args[0].channel.id)
+            : Unpin(this.settings.get, this.settings.set, section, args[0].channel.id)
+        }</MenuGroup>);
+
+        return res;
+      });
+
       patch(PrivateChannelsList, 'render', (args, res, _this) => {
         const { channels, selectedChannelId } = _this.props;
 
@@ -67,15 +80,15 @@ export default class ImprovedDMs extends Plugin {
             if (CategoryDMs[categoryDMs]) {
               CategoryDMs[categoryDMs].push((selectedChannelId !== channel.id && SectionCollapsed[categoryDMs]) || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = categoryDMs;
+            } else if (Pinned.includes(privateChannelId)) {
+              PinnedDMs.push(privateChannelId);
+              AllPinnedDMs[privateChannelId] = 'Pinned';
             } else if (GroupSection && channel.isGroupDM()) {
               CategoryDMs.Groups.push((selectedChannelId !== channel.id && SectionCollapsed.Groups) || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = 'Groups';
             } else if (FriendSection && channel.isDM() && getRelationships()[channel.recipients[0]] === Constants.RelationshipTypes.FRIEND) {
               CategoryDMs.Friends.push((selectedChannelId !== channel.id && SectionCollapsed.Friends) || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = 'Friends';
-            } else if (Pinned.includes(privateChannelId)) {
-              PinnedDMs.push(privateChannelId);
-              AllPinnedDMs[privateChannelId] = 'Pinned';
             } else OtherDMs.push(privateChannelId);
           }
         }
