@@ -126,7 +126,7 @@ export default class ImprovedDMs extends Plugin {
                   children: [
                     <DropdownArrow className={`IDM-DropdownArrow ${icon}`} />,
                     props.children[0],
-                    <NumberBadge count={Object.values(DMSectionLengths)[RenderSection.key - 1]} />
+                    <NumberBadge count={Object.values(DMSectionLengths)[RenderSection.key - 1]} color={Constants.Colors.BRAND} />
                   ]
                 };
 
