@@ -9,6 +9,7 @@ import { getModule } from '@vizality/webpack';
 import { Pin, Unpin } from './components/MenuItems';
 import { SectionDragDrop, SectionDrop } from './components/Section';
 
+import patchContextMenuLazy from './modules/patchContextMenuLazy';
 import TempPatch from './modules/TempPatch';
 
 import { SectionDragged, AllPinnedDMs, DMSectionLengths, DefaultSettings } from './constants';
@@ -31,8 +32,8 @@ export default class ImprovedDMs extends Plugin {
   }
 
   patch () {
-    new Promise(async (resolve, reject) => resolve((await react.getComponent('PrivateChannelsList')).component.prototype)).then(PrivateChannelsList => {
-      patch(getModule(m => m.default?.displayName === 'DMUserContextMenu'), 'default', (args, res) => {
+    new Promise(async resolve => resolve((await react.getComponent('PrivateChannelsList')).component.prototype)).then(PrivateChannelsList => {
+      patchContextMenuLazy(getModule.bind(this, m => m.default?.displayName === 'DMUserContextMenu'), 'default', (args, res) => {
         if (!res) return res;
 
         const section = AllPinnedDMs[args[0].channel.id];
@@ -46,7 +47,7 @@ export default class ImprovedDMs extends Plugin {
         return res;
       });
 
-      patch(getModule(m => m.default?.displayName === 'GroupDMContextMenu'), 'default', (args, res) => {
+      patchContextMenuLazy(getModule.bind(this, m => m.default?.displayName === 'GroupDMContextMenu'), 'default', (args, res) => {
         if (!res) return res;
         const section = AllPinnedDMs[args[0].channel.id];
 
@@ -164,7 +165,7 @@ export default class ImprovedDMs extends Plugin {
       });
     });
 
-    patch(getModule(m => String(m.default).includes('e.within')), 'default', (args, res) => {
+    patch(getModule(m => String(m.default).includes('e.within')), 'default', args => {
       const { props } = args[0].children;
       if (!props.className?.includes(channel)) return;
 

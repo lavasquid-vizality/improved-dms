@@ -1,6 +1,5 @@
 import { cloneDeep } from 'lodash';
 import React, { memo } from 'react';
-import { open } from '@vizality/modal';
 import { getModule } from '@vizality/webpack';
 
 import NewCategoryModel from './NewCategoryModel';
@@ -11,6 +10,7 @@ const Menu = getModule(m => m.displayName === 'Menu');
 const { MenuGroup, MenuItem } = getModule(m => m.MenuItem);
 
 const { closeContextMenu } = getModule(m => m.closeContextMenu);
+const { openModalLazy } = getModule(m => m.openModalLazy);
 
 export const ContextMenu = memo(({ onSelect, settingsGet, settingsSet, value }) => {
   return <Menu onSelect={onSelect} navId={'dm-category-context'} onClose={closeContextMenu}>
@@ -51,7 +51,7 @@ export function Pin (settingsGet, settingsSet, channelId) {
 
       forceUpdatePrivateChannelsList();
     }} id={`pin-dm-${category}`} label={category} />)}</MenuGroup>
-    <MenuGroup><MenuItem action={() => open(() => <NewCategoryModel settingsGet={settingsGet} settingsSet={settingsSet} channelId={channelId} />)} id={'new-category'} label={'New Category'} color={MenuItem.Colors.GREEN} /></MenuGroup>
+    <MenuGroup><MenuItem action={() => openModalLazy(() => ModalArgs => <NewCategoryModel {...ModalArgs} settingsGet={settingsGet} settingsSet={settingsSet} channelId={channelId} />)} id={'new-category'} label={'New Category'} color={MenuItem.Colors.GREEN} /></MenuGroup>
   </MenuItem>;
 }
 
