@@ -1,7 +1,6 @@
 import { cloneDeep } from 'lodash';
 import React from 'react';
 import react from '@vizality/react';
-import { Constants } from '@vizality/discord/constants';
 import { Plugin } from '@vizality/entities';
 import { patch } from '@vizality/patcher';
 import { getModule } from '@vizality/webpack';
@@ -9,7 +8,6 @@ import { getModule } from '@vizality/webpack';
 import { Pin, Unpin } from './components/MenuItems';
 import { SectionDragDrop, SectionDrop } from './components/Section';
 
-import patchContextMenuLazy from './modules/patchContextMenuLazy';
 import TempPatch from './modules/TempPatch';
 
 import { SectionDragged, AllPinnedDMs, DMSectionLengths, DefaultSettings } from './constants';
@@ -17,7 +15,9 @@ import { SectionDragged, AllPinnedDMs, DMSectionLengths, DefaultSettings } from 
 const { MenuGroup } = getModule(m => m.MenuItem);
 const DropdownArrow = getModule(m => m.displayName === 'DropdownArrow');
 const { NumberBadge } = getModule(m => m.NumberBadge);
+const PinIcon = getModule(m => m.displayName === 'Pin');
 
+const Constants = getModule(m => m.API_HOST);
 const { getPrivateChannelIds } = getModule(m => m.getPrivateChannelIds);
 const { getRelationships } = getModule(m => m.getRelationships);
 const { getMentionCount } = getModule(m => m.getMentionCount);
@@ -33,29 +33,21 @@ export default class ImprovedDMs extends Plugin {
 
   patch () {
     new Promise(async resolve => resolve((await react.getComponent('PrivateChannelsList')).component.prototype)).then(PrivateChannelsList => {
-      patchContextMenuLazy(getModule.bind(this, m => m.default?.displayName === 'DMUserContextMenu'), 'default', (args, res) => {
-        if (!res) return res;
+      patch(getModule(m => m.displayName === 'AnalyticsContext').prototype, 'renderProvider', (args, res) => {
+        if (res.props.value.location.object !== 'Context Menu') return res;
+        if (res.props.children.type.displayName !== 'DMUserContextMenu' && res.props.children.type.displayName !== 'GroupDMContextMenu') return res;
 
-        const section = AllPinnedDMs[args[0].channel.id];
+        TempPatch(res.props.children, 'type', Type => {
+          const { id: channelId } = res.props.children.props.channel;
+          const section = AllPinnedDMs[channelId];
 
-        res.props.children.props.children.unshift(<MenuGroup>{
-          !section || section === 'Groups' || section === 'Friends'
-            ? Pin(this.settings.get, this.settings.set, args[0].channel.id)
-            : Unpin(this.settings.get, this.settings.set, section, args[0].channel.id)
-        }</MenuGroup>);
-
-        return res;
-      });
-
-      patchContextMenuLazy(getModule.bind(this, m => m.default?.displayName === 'GroupDMContextMenu'), 'default', (args, res) => {
-        if (!res) return res;
-        const section = AllPinnedDMs[args[0].channel.id];
-
-        res.props.children.unshift(<MenuGroup>{
-          !section || section === 'Groups' || section === 'Friends'
-            ? Pin(this.settings.get, this.settings.set, args[0].channel.id)
-            : Unpin(this.settings.get, this.settings.set, section, args[0].channel.id)
-        }</MenuGroup>);
+          Type.props.children.unshift(<MenuGroup>{
+            !section || section === 'Groups' || section === 'Friends'
+              ? Pin(this.settings.get, this.settings.set, channelId)
+              : Unpin(this.settings.get, this.settings.set, section, channelId)
+          }</MenuGroup>);
+          return Type;
+        });
 
         return res;
       });
@@ -79,16 +71,16 @@ export default class ImprovedDMs extends Plugin {
           if (channel) {
             const categoryDMs = Categories[privateChannelId];
             if (CategoryDMs[categoryDMs]) {
-              CategoryDMs[categoryDMs].push((selectedChannelId !== channel.id && SectionCollapsed[categoryDMs]) || SectionDragged ? null : privateChannelId);
+              CategoryDMs[categoryDMs].push(selectedChannelId !== channel.id && SectionCollapsed[categoryDMs] || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = categoryDMs;
             } else if (Pinned.includes(privateChannelId)) {
               PinnedDMs.push(privateChannelId);
               AllPinnedDMs[privateChannelId] = 'Pinned';
             } else if (GroupSection && channel.isGroupDM()) {
-              CategoryDMs.Groups.push((selectedChannelId !== channel.id && SectionCollapsed.Groups) || SectionDragged ? null : privateChannelId);
+              CategoryDMs.Groups.push(selectedChannelId !== channel.id && SectionCollapsed.Groups || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = 'Groups';
             } else if (FriendSection && channel.isDM() && getRelationships()[channel.recipients[0]] === Constants.RelationshipTypes.FRIEND) {
-              CategoryDMs.Friends.push((selectedChannelId !== channel.id && SectionCollapsed.Friends) || SectionDragged ? null : privateChannelId);
+              CategoryDMs.Friends.push(selectedChannelId !== channel.id && SectionCollapsed.Friends || SectionDragged ? null : privateChannelId);
               AllPinnedDMs[privateChannelId] = 'Friends';
             } else OtherDMs.push(privateChannelId);
           }
@@ -116,7 +108,7 @@ export default class ImprovedDMs extends Plugin {
               }
 
               const name = Object.keys(DMSectionLengths)[section - 1];
-              if ((SectionCollapsed[name] && (privateChannelIds[row] !== selectedChannelId || privateChannelIds[row] === null)) || (SectionDragged && name && name !== 'Others')) return 0;
+              if (SectionCollapsed[name] && (privateChannelIds[row] !== selectedChannelId || privateChannelIds[row] === null) || SectionDragged && name && name !== 'Others') return 0;
             }, true);
 
             TempPatch(Children.props, 'renderSection', RenderSection => {
@@ -165,13 +157,19 @@ export default class ImprovedDMs extends Plugin {
       });
     });
 
-    patch(getModule(m => String(m.default).includes('e.within')), 'default', args => {
+    patch(getModule(m => m.default?.toString().includes('e.within')), 'default', args => {
       const { props } = args[0].children;
       if (!props.className?.includes(channel)) return;
 
-      const id = props.to.match?.(/\d{17,20}/)[0];
+      const id = props.children.props.children[0].props.to.match?.(/\d{17,20}/)[0];
+
+      const Pinned = this.settings.get('Pinned', DefaultSettings.Pinned);
       const mentionCount = getMentionCount(id);
-      if (mentionCount) props.children.props.children.push(<NumberBadge count={mentionCount} />);
+
+      props.children.props.children.splice(1, 0, <>
+        {!!mentionCount && <NumberBadge className={'IDM-DMIcons'} count={mentionCount} />}
+        {Pinned.includes(id) && <PinIcon className={'IDM-DMIcons'} />}
+      </>);
     }, 'before');
   }
 }

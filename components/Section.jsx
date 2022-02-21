@@ -14,7 +14,7 @@ const { openContextMenu } = getModule(m => m.openContextMenu);
 const { DropTarget, DragSource } = getModule(m => m.DropTarget && m.DragSource);
 
 const { clickable } = getModule('clickable', 'collapsed');
-const { containerDefault, containerDragBefore } = getModule(m => m.containerDefault && m.mentionsBadge);
+const { containerDefault, containerDragBefore } = getModule(m => m.containerDefault && m.icon);
 
 const SectionDragSource = {
   beginDrag: props => {
