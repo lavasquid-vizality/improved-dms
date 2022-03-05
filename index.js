@@ -23,7 +23,6 @@ const { getRelationships } = getModule(m => m.getRelationships);
 const { getMentionCount } = getModule(m => m.getMentionCount);
 
 const { collapsed, icon } = getModule('clickable', 'collapsed');
-const { channel } = getModule('channel', 'closeIcon');
 
 export default class ImprovedDMs extends Plugin {
   start () {
@@ -157,19 +156,19 @@ export default class ImprovedDMs extends Plugin {
       });
     });
 
-    patch(getModule(m => m.default?.toString().includes('e.within')), 'default', args => {
-      const { props } = args[0].children;
-      if (!props.className?.includes(channel)) return;
+    patch(getModule(m => m.displayName === 'PrivateChannel').prototype, 'render', (args, res, _this) => {
+      TempPatch(res, 'type', Type => {
+        const { id } = _this.props.channel;
 
-      const id = props.children.props.children[0].props.to.match?.(/\d{17,20}/)[0];
+        const Pinned = this.settings.get('Pinned', DefaultSettings.Pinned);
+        const mentionCount = getMentionCount(id);
 
-      const Pinned = this.settings.get('Pinned', DefaultSettings.Pinned);
-      const mentionCount = getMentionCount(id);
-
-      props.children.props.children.splice(1, 0, <>
-        {!!mentionCount && <NumberBadge className={'IDM-DMIcons'} count={mentionCount} />}
-        {Pinned.includes(id) && <PinIcon className={'IDM-DMIcons'} />}
-      </>);
-    }, 'before');
+        Type.props.children.props.children.splice(1, 0, <>
+          {!!mentionCount && <NumberBadge className={'IDM-DMIcons'} count={mentionCount} />}
+          {Pinned.includes(id) && <PinIcon className={'IDM-DMIcons'} />}
+        </>);
+        return Type;
+      });
+    });
   }
 }
