@@ -31,7 +31,7 @@ export default class ImprovedDMs extends Plugin {
   }
 
   patch () {
-    new Promise(async resolve => resolve((await react.getComponent('PrivateChannelsList')).component.prototype)).then(PrivateChannelsList => {
+    Promise.resolve(react.getComponent('PrivateChannelsList')).then(({ component: PrivateChannelsList }) => {
       patch(getModule(m => m.displayName === 'AnalyticsContext').prototype, 'renderProvider', (args, res) => {
         if (res.props.value.location.object !== 'Context Menu') return res;
         if (res.props.children.type.displayName !== 'DMUserContextMenu' && res.props.children.type.displayName !== 'GroupDMContextMenu') return res;
@@ -51,7 +51,7 @@ export default class ImprovedDMs extends Plugin {
         return res;
       });
 
-      patch(PrivateChannelsList, 'render', (args, res, _this) => {
+      patch(PrivateChannelsList.prototype, 'render', (args, res, _this) => {
         const { channels, selectedChannelId } = _this.props;
 
         const GroupSection = this.settings.get('Groups', DefaultSettings.Groups);
