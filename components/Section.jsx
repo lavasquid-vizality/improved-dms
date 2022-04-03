@@ -1,7 +1,6 @@
 import { cloneDeep } from 'lodash';
 import React, { memo } from 'react';
 import { getModule } from '@vizality/webpack';
-import { sleep } from '@vizality/util/time';
 
 import { ContextMenu } from './MenuItems';
 
@@ -19,7 +18,7 @@ const { containerDefault, containerDragBefore } = getModule(m => m.containerDefa
 const SectionDragSource = {
   beginDrag: props => {
     SectionDragged = props.value;
-    sleep(1).then(forceUpdatePrivateChannelsList);
+    Promise.resolve().then(forceUpdatePrivateChannelsList);
     return { key: props.RenderSection.key };
   },
   endDrag: (props, monitor) => {
